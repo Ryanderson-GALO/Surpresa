@@ -23,30 +23,40 @@
   <main>
 
     <div class="transmission-label fade-in" style="animation-delay:0.1s">
-      transmissão interceptada
+      transmissão interceptada — decifre a mensagem
     </div>
 
     <!-- ─── Morse Panel ─── -->
     <div class="morse-panel fade-in" style="animation-delay:0.3s">
-
-      <!-- A mensagem em Morse é gerada pelo JS abaixo -->
       <div class="morse-line" id="morse-output"></div>
 
-      <!-- Decoded strip -->
-      <div class="decoded-strip">
-        <div class="decoded-label">DECODIFICADO</div>
-        <div class="decoded-text">Aceita ser o nosso professor orientador?</div>
+      <!-- Progress bar -->
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span id="progress-text">0 / 0 letras decifradas</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
       </div>
 
-    </div><!-- /morse-panel -->
+      <!-- Decoded strip — hidden until all revealed -->
+      <div class="decoded-strip" id="decoded-strip">
+        <div class="decoded-label">✦ MENSAGEM DECIFRADA ✦</div>
+        <div class="decoded-text">Aceita ser o nosso professor orientador?</div>
+      </div>
+    </div>
+
+    <!-- ─── Hint ─── -->
+    <p class="hint fade-in" style="animation-delay:0.45s">
+      ↓ &nbsp;Clique nas letras abaixo para decifrar a mensagem
+    </p>
 
     <!-- ─── Alphabet Reference ─── -->
     <div class="alphabet-section fade-in" style="animation-delay:0.5s">
-
       <div class="section-title">Tabela de Referência Morse</div>
-
       <div class="alpha-grid" id="alpha-grid"></div>
-
     </div>
 
   </main>
@@ -58,7 +68,6 @@
 
   <!-- ═══════════════════════════════════ SCRIPT ═══ -->
   <script>
-    // ── Morse dictionary ──────────────────────────────────
     const MORSE = {
       A:'·−',      B:'−···',    C:'−·−·',    D:'−··',
       E:'·',       F:'··−·',    G:'−−·',     H:'····',
@@ -74,42 +83,42 @@
       '.':'·−·−·−', ',':'−−··−−', '!':'−·−·−−', '/':'−··−·',
     };
 
-    // ── Render Morse message ──────────────────────────────
-    const message = 'ACEITA SER O NOSSO PROFESSOR ORIENTADOR?';
-    const container = document.getElementById('morse-output');
+    const MESSAGE      = 'ACEITA SER O NOSSO PROFESSOR ORIENTADOR?';
+    const revealedSet  = new Set();
+    const uniqueLetters = [...new Set(MESSAGE.replace(/ /g, '').split(''))];
+    const totalUnique   = uniqueLetters.length;
 
-    let charIndex = 0;
-    const words = message.split(' ');
+    // ── Build Morse display ───────────────────────────────
+    const container = document.getElementById('morse-output');
+    const words = MESSAGE.split(' ');
 
     words.forEach((word, wi) => {
       const wordEl = document.createElement('div');
       wordEl.className = 'morse-word';
 
       [...word].forEach(letter => {
-        const code = MORSE[letter] || '';
-        const isQ  = (letter === '?');
+        const isQ = letter === '?';
 
         const charEl = document.createElement('div');
-        charEl.className = 'morse-char' + (isQ ? ' question-mark' : '');
-        charEl.style.animationDelay = (0.4 + charIndex * 0.04) + 's';
+        charEl.className = 'morse-char locked' + (isQ ? ' question-mark' : '');
+        charEl.dataset.letter = letter;
 
         const symEl = document.createElement('div');
         symEl.className = 'morse-symbol';
-        symEl.textContent = code;
+        symEl.textContent = MORSE[letter] || '';
 
         const letEl = document.createElement('div');
         letEl.className = 'morse-letter';
-        letEl.textContent = letter;
+        letEl.textContent = '?';
+        letEl.dataset.real = letter;
 
         charEl.appendChild(symEl);
         charEl.appendChild(letEl);
         wordEl.appendChild(charEl);
-        charIndex++;
       });
 
       container.appendChild(wordEl);
 
-      // Word separator (not after last word)
       if (wi < words.length - 1) {
         const sep = document.createElement('div');
         sep.className = 'word-sep';
@@ -117,7 +126,7 @@
       }
     });
 
-    // Blinking cursor at end
+    // Cursor
     const lastWord = container.lastElementChild;
     if (lastWord && lastWord.classList.contains('morse-word')) {
       const cur = document.createElement('span');
@@ -125,30 +134,79 @@
       lastWord.appendChild(cur);
     }
 
-    // ── Render Alphabet Grid ──────────────────────────────
+    // Update progress counter
+    function updateProgress() {
+      const count = revealedSet.size;
+      const pct   = Math.round((count / totalUnique) * 100);
+      document.getElementById('progress-text').textContent = `${count} / ${totalUnique} letras decifradas`;
+      document.getElementById('progress-pct').textContent  = pct + '%';
+      document.getElementById('progress-fill').style.width = pct + '%';
+
+      if (count === totalUnique) {
+        setTimeout(() => {
+          document.getElementById('decoded-strip').classList.add('strip-visible');
+        }, 500);
+      }
+    }
+
+    updateProgress(); // init at 0
+
+    // Reveal all chars matching a letter
+    function revealLetter(letter) {
+      if (revealedSet.has(letter)) return;
+      revealedSet.add(letter);
+
+      document.querySelectorAll(`.morse-char[data-letter="${letter}"]`).forEach(el => {
+        el.classList.remove('locked');
+        el.classList.add('revealed');
+        el.querySelector('.morse-letter').textContent = letter;
+      });
+
+      updateProgress();
+    }
+
+    // ── Build Alphabet Grid ───────────────────────────────
     const letters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     const digits   = '0123456789'.split('');
     const specials = ['?', '.', ',', '!', '/'];
-
-    const grid = document.getElementById('alpha-grid');
+    const grid     = document.getElementById('alpha-grid');
 
     function makeItem(char) {
       const item = document.createElement('div');
       item.className = 'alpha-item';
+      if (uniqueLetters.includes(char)) item.dataset.inMessage = 'true';
+
       const letterEl = document.createElement('span');
       letterEl.className = 'alpha-letter';
       letterEl.textContent = char;
+
       const codeEl = document.createElement('span');
       codeEl.className = 'alpha-code';
       codeEl.textContent = MORSE[char] || '?';
+
       item.appendChild(letterEl);
       item.appendChild(codeEl);
+
+      item.addEventListener('click', () => {
+        if (revealedSet.has(char)) {
+          item.classList.add('already-done');
+          setTimeout(() => item.classList.remove('already-done'), 600);
+          return;
+        }
+        if (!uniqueLetters.includes(char)) {
+          item.classList.add('wrong-click');
+          setTimeout(() => item.classList.remove('wrong-click'), 600);
+          return;
+        }
+        item.classList.add('used');
+        revealLetter(char);
+      });
+
       return item;
     }
 
     letters.forEach(c => grid.appendChild(makeItem(c)));
 
-    // Divider before numbers
     const div1 = document.createElement('div');
     div1.className = 'special-divider';
     div1.innerHTML = '<span>números</span>';
@@ -156,7 +214,6 @@
 
     digits.forEach(c => grid.appendChild(makeItem(c)));
 
-    // Divider before specials
     const div2 = document.createElement('div');
     div2.className = 'special-divider';
     div2.innerHTML = '<span>sinais</span>';
