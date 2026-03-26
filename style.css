@@ -1,226 +1,411 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transmissão · Código Morse</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Special+Elite&display=swap');
 
-  <!-- ═══════════════════════════════════ HEADER ═══ -->
-  <header>
-    <div class="station-id">CW·TRANSMIT</div>
-    <div class="signal-indicators">
-      <div class="dot-indicator"></div>
-      <div class="dot-indicator"></div>
-      <div class="dot-indicator"></div>
-    </div>
-    <div class="freq-display">432.0 kHz &nbsp;▪&nbsp; LIVE</div>
-  </header>
+:root {
+  --bg-deep:       #060a0f;
+  --bg-panel:      #0b1117;
+  --bg-card:       #0f1820;
+  --amber:         #e8a020;
+  --amber-dim:     #7a4a05;
+  --amber-glow:    #ffc75a;
+  --green-signal:  #1aff6e;
+  --green-dim:     #0a4020;
+  --red-alert:     #ff3c3c;
+  --text-primary:  #f0d080;
+  --text-secondary:#8a7050;
+  --text-dim:      #3a2a15;
+  --border:        #2a1f0f;
+  --border-glow:   #5a3a10;
+  --scanline:      rgba(255, 200, 80, 0.015);
+}
 
-  <!-- ═══════════════════════════════════ MAIN ═══ -->
-  <main>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
-    <div class="transmission-label fade-in" style="animation-delay:0.1s">
-      transmissão interceptada — decifre a mensagem
-    </div>
+body {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
 
-    <!-- ─── Morse Panel ─── -->
-    <div class="morse-panel fade-in" style="animation-delay:0.3s">
-      <div class="morse-line" id="morse-output"></div>
+/* Scanlines */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--scanline) 0px, var(--scanline) 1px,
+    transparent 1px, transparent 3px
+  );
+  pointer-events: none; z-index: 999;
+}
 
-      <!-- Progress bar -->
-      <div class="progress-wrap">
-        <div class="progress-label">
-          <span id="progress-text">0 / 0 letras decifradas</span>
-          <span id="progress-pct">0%</span>
-        </div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" id="progress-fill"></div>
-        </div>
-      </div>
+/* Vignette */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.85) 100%);
+  pointer-events: none; z-index: 998;
+}
 
-      <!-- Decoded strip — hidden until all revealed -->
-      <div class="decoded-strip" id="decoded-strip">
-        <div class="decoded-label">✦ MENSAGEM DECIFRADA ✦</div>
-        <div class="decoded-text">Aceita ser o nosso professor orientador?</div>
-      </div>
-    </div>
+/* ════ HEADER ════ */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  position: relative;
+}
+header::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber-dim), var(--amber), var(--amber-dim), transparent);
+  animation: scanH 4s linear infinite;
+}
+@keyframes scanH {
+  0%, 100% { opacity: 0.3; } 50% { opacity: 1; }
+}
+.station-id {
+  font-family: 'Orbitron', monospace;
+  font-weight: 900; font-size: 1.1rem; letter-spacing: 0.25em;
+  color: var(--amber);
+  text-shadow: 0 0 18px var(--amber), 0 0 40px rgba(232,160,32,0.4);
+}
+.signal-indicators { display: flex; gap: 12px; align-items: center; }
+.dot-indicator {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green-signal);
+  box-shadow: 0 0 8px var(--green-signal);
+  animation: blink 1.4s ease-in-out infinite;
+}
+.dot-indicator:nth-child(2) { animation-delay: 0.3s; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.dot-indicator:nth-child(3) { animation-delay: 0.6s; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+.freq-display { font-size: 0.7rem; color: var(--text-secondary); letter-spacing: 0.1em; }
 
-    <!-- ─── Hint ─── -->
-    <p class="hint fade-in" style="animation-delay:0.45s">
-      ↓ &nbsp;Clique nas letras abaixo para decifrar a mensagem
-    </p>
+/* ════ MAIN ════ */
+main { max-width: 960px; margin: 0 auto; padding: 60px 24px 80px; }
 
-    <!-- ─── Alphabet Reference ─── -->
-    <div class="alphabet-section fade-in" style="animation-delay:0.5s">
-      <div class="section-title">Tabela de Referência Morse</div>
-      <div class="alpha-grid" id="alpha-grid"></div>
-    </div>
+.transmission-label {
+  font-size: 0.65rem; letter-spacing: 0.4em;
+  color: var(--text-secondary); text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.transmission-label::before,
+.transmission-label::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-glow));
+}
+.transmission-label::after {
+  background: linear-gradient(270deg, transparent, var(--border-glow));
+}
 
-  </main>
+/* ════ MORSE PANEL ════ */
+.morse-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 40px 48px 32px;
+  position: relative;
+  margin-bottom: 16px;
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.6), 0 0 30px rgba(232,160,32,0.05);
+}
+.morse-panel::before {
+  content: 'MENSAGEM RECEBIDA';
+  position: absolute; top: -11px; left: 32px;
+  background: var(--bg-panel);
+  padding: 0 12px;
+  font-size: 0.6rem; letter-spacing: 0.3em; color: var(--amber-dim);
+}
+.morse-panel::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--amber-dim) 20%, var(--amber) 50%,
+    var(--amber-dim) 80%, transparent 100%);
+  animation: topGlow 3s ease-in-out infinite;
+}
+@keyframes topGlow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-  <!-- ═══════════════════════════════════ FOOTER ═══ -->
-  <footer>
-    <span>·−−· ·−· − −·−·−</span> &nbsp;|&nbsp; International Morse Code · ITU-R M.1677
-  </footer>
+/* ════ MORSE CHARS ════ */
+.morse-line {
+  display: flex; flex-wrap: wrap;
+  gap: 16px 6px; align-items: flex-end;
+  margin-bottom: 28px;
+}
+.morse-word { display: inline-flex; gap: 6px; align-items: flex-end; }
 
-  <!-- ═══════════════════════════════════ SCRIPT ═══ -->
-  <script>
-    const MORSE = {
-      A:'·−',      B:'−···',    C:'−·−·',    D:'−··',
-      E:'·',       F:'··−·',    G:'−−·',     H:'····',
-      I:'··',      J:'·−−−',    K:'−·−',     L:'·−··',
-      M:'−−',      N:'−·',      O:'−−−',     P:'·−−·',
-      Q:'−−·−',    R:'·−·',     S:'···',     T:'−',
-      U:'··−',     V:'···−',    W:'·−−',     X:'−··−',
-      Y:'−·−−',    Z:'−−··',
-      '0':'−−−−−', '1':'·−−−−', '2':'··−−−', '3':'···−−',
-      '4':'····−', '5':'·····', '6':'−····', '7':'−−···',
-      '8':'−−−··', '9':'−−−−·',
-      '?':'··−−··',
-      '.':'·−·−·−', ',':'−−··−−', '!':'−·−·−−', '/':'−··−·',
-    };
+.morse-char {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 6px;
+  animation: charReveal 0.4s ease forwards; opacity: 0;
+}
+@keyframes charReveal {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-    const MESSAGE      = 'ACEITA SER O NOSSO PROFESSOR ORIENTADOR?';
-    const revealedSet  = new Set();
-    const uniqueLetters = [...new Set(MESSAGE.replace(/ /g, '').split(''))];
-    const totalUnique   = uniqueLetters.length;
+.morse-symbol {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.45rem; line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 8px rgba(232,160,32,0.6);
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+.morse-letter {
+  font-size: 0.65rem; letter-spacing: 0.15em;
+  color: var(--text-secondary); text-transform: uppercase;
+  min-width: 14px; text-align: center;
+  transition: all 0.3s;
+}
 
-    // ── Build Morse display ───────────────────────────────
-    const container = document.getElementById('morse-output');
-    const words = MESSAGE.split(' ');
+/* ── LOCKED state: letter shows '?' dimmed ── */
+.morse-char.locked .morse-letter {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+.morse-char.locked .morse-symbol {
+  color: var(--amber-dim);
+  text-shadow: none;
+}
 
-    words.forEach((word, wi) => {
-      const wordEl = document.createElement('div');
-      wordEl.className = 'morse-word';
+/* ── REVEALED state: letter lights up ── */
+.morse-char.revealed .morse-letter {
+  color: var(--amber);
+  text-shadow: 0 0 8px rgba(232,160,32,0.7);
+  animation: letterPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.morse-char.revealed .morse-symbol {
+  color: var(--amber);
+  text-shadow: 0 0 12px var(--amber), 0 0 24px rgba(232,160,32,0.4);
+}
+@keyframes letterPop {
+  0%   { transform: scale(0.5) translateY(-4px); opacity: 0; }
+  100% { transform: scale(1) translateY(0);      opacity: 1; }
+}
 
-      [...word].forEach(letter => {
-        const isQ = letter === '?';
+.morse-char.question-mark .morse-symbol { color: var(--green-signal); text-shadow: 0 0 10px var(--green-signal); }
+.morse-char.question-mark .morse-letter { color: var(--green-signal); }
+.morse-char.question-mark.revealed .morse-letter { color: var(--green-signal); text-shadow: 0 0 8px var(--green-signal); }
 
-        const charEl = document.createElement('div');
-        charEl.className = 'morse-char locked' + (isQ ? ' question-mark' : '');
-        charEl.dataset.letter = letter;
+.word-sep {
+  width: 12px; height: 3px;
+  background: var(--text-dim);
+  border-radius: 2px; align-self: center; flex-shrink: 0;
+}
+.cursor-blink {
+  display: inline-block; width: 10px; height: 24px;
+  background: var(--amber); box-shadow: 0 0 10px var(--amber);
+  animation: cursorPulse 0.9s step-end infinite;
+  vertical-align: middle; margin-left: 4px;
+}
+@keyframes cursorPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-        const symEl = document.createElement('div');
-        symEl.className = 'morse-symbol';
-        symEl.textContent = MORSE[letter] || '';
+/* ════ PROGRESS BAR ════ */
+.progress-wrap { margin-bottom: 0; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 0.6rem; letter-spacing: 0.2em;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.progress-bar-bg {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 8px var(--amber);
+}
 
-        const letEl = document.createElement('div');
-        letEl.className = 'morse-letter';
-        letEl.textContent = '?';
-        letEl.dataset.real = letter;
+/* ════ DECODED STRIP ════ */
+.decoded-strip {
+  background: var(--green-dim);
+  border: 1px solid var(--green-signal);
+  border-radius: 1px;
+  padding: 14px 24px;
+  margin-top: 24px;
+  text-align: center;
+  position: relative; overflow: hidden;
+  /* hidden by default */
+  max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0;
+  border-width: 0;
+  transition: max-height 0.6s ease, opacity 0.6s ease, padding 0.6s ease, border-width 0.4s ease;
+}
+.decoded-strip.strip-visible {
+  max-height: 120px; opacity: 1;
+  padding: 14px 24px; border-width: 1px;
+}
+.decoded-strip::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(26,255,110,0.05), transparent);
+  animation: sweepGreen 3s linear infinite;
+}
+@keyframes sweepGreen { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.decoded-label {
+  font-size: 0.55rem; letter-spacing: 0.5em;
+  color: rgba(26,255,110,0.5);
+  margin-bottom: 6px; position: relative;
+}
+.decoded-text {
+  font-family: 'Special Elite', cursive;
+  font-size: 1.2rem; letter-spacing: 0.1em;
+  color: var(--green-signal);
+  text-shadow: 0 0 16px rgba(26,255,110,0.6);
+  position: relative;
+}
 
-        charEl.appendChild(symEl);
-        charEl.appendChild(letEl);
-        wordEl.appendChild(charEl);
-      });
+/* ════ HINT ════ */
+.hint {
+  text-align: center;
+  font-size: 0.65rem; letter-spacing: 0.3em;
+  color: var(--text-secondary);
+  margin: 24px 0 40px;
+  animation: hintPulse 2.5s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-      container.appendChild(wordEl);
+/* ════ ALPHABET GRID ════ */
+.alphabet-section { margin-top: 0; }
+.section-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem; letter-spacing: 0.5em;
+  color: var(--amber-dim); text-transform: uppercase;
+  margin-bottom: 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-      if (wi < words.length - 1) {
-        const sep = document.createElement('div');
-        sep.className = 'word-sep';
-        container.appendChild(sep);
-      }
-    });
+.alpha-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
 
-    // Cursor
-    const lastWord = container.lastElementChild;
-    if (lastWord && lastWord.classList.contains('morse-word')) {
-      const cur = document.createElement('span');
-      cur.className = 'cursor-blink';
-      lastWord.appendChild(cur);
-    }
+.alpha-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 10px 8px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s, transform 0.1s;
+  position: relative; overflow: hidden;
+  user-select: none;
+}
+.alpha-item::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--amber);
+  transform: scaleX(0); transition: transform 0.3s;
+  transform-origin: left;
+}
+.alpha-item:hover::before { transform: scaleX(1); }
+.alpha-item:hover {
+  border-color: var(--border-glow);
+  background: #141c24;
+  box-shadow: 0 0 16px rgba(232,160,32,0.1);
+}
+.alpha-item:active { transform: scale(0.95); }
 
-    // Update progress counter
-    function updateProgress() {
-      const count = revealedSet.size;
-      const pct   = Math.round((count / totalUnique) * 100);
-      document.getElementById('progress-text').textContent = `${count} / ${totalUnique} letras decifradas`;
-      document.getElementById('progress-pct').textContent  = pct + '%';
-      document.getElementById('progress-fill').style.width = pct + '%';
+/* Letters not in the message — dimmer */
+.alpha-item:not([data-in-message]) {
+  opacity: 0.45;
+}
+.alpha-item:not([data-in-message]):hover {
+  opacity: 0.6;
+}
 
-      if (count === totalUnique) {
-        setTimeout(() => {
-          document.getElementById('decoded-strip').classList.add('strip-visible');
-        }, 500);
-      }
-    }
+.alpha-letter {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--text-primary);
+  display: block; margin-bottom: 6px;
+  transition: color 0.2s, text-shadow 0.2s;
+}
+.alpha-item:hover .alpha-letter { color: var(--amber); text-shadow: 0 0 10px var(--amber); }
 
-    updateProgress(); // init at 0
+.alpha-code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem; color: var(--amber-dim);
+  letter-spacing: 0.1em;
+  transition: color 0.2s;
+}
+.alpha-item:hover .alpha-code { color: var(--amber); }
 
-    // Reveal all chars matching a letter
-    function revealLetter(letter) {
-      if (revealedSet.has(letter)) return;
-      revealedSet.add(letter);
+/* ── USED: letter revealed successfully ── */
+.alpha-item.used {
+  background: #111a10;
+  border-color: var(--green-signal);
+  box-shadow: 0 0 12px rgba(26,255,110,0.15);
+  opacity: 1 !important;
+  cursor: default;
+}
+.alpha-item.used .alpha-letter { color: var(--green-signal); text-shadow: 0 0 8px var(--green-signal); }
+.alpha-item.used .alpha-code   { color: rgba(26,255,110,0.5); }
+.alpha-item.used::before       { background: var(--green-signal); transform: scaleX(1); }
 
-      document.querySelectorAll(`.morse-char[data-letter="${letter}"]`).forEach(el => {
-        el.classList.remove('locked');
-        el.classList.add('revealed');
-        el.querySelector('.morse-letter').textContent = letter;
-      });
+/* ── ALREADY-DONE flash ── */
+.alpha-item.already-done {
+  animation: flashGreen 0.6s ease;
+}
+@keyframes flashGreen {
+  0%, 100% { box-shadow: 0 0 12px rgba(26,255,110,0.15); }
+  50%       { box-shadow: 0 0 24px rgba(26,255,110,0.5); }
+}
 
-      updateProgress();
-    }
+/* ── WRONG-CLICK flash ── */
+.alpha-item.wrong-click {
+  animation: flashRed 0.6s ease;
+}
+@keyframes flashRed {
+  0%, 100% { border-color: var(--border); }
+  50%       { border-color: var(--red-alert); box-shadow: 0 0 16px rgba(255,60,60,0.3); }
+}
 
-    // ── Build Alphabet Grid ───────────────────────────────
-    const letters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const digits   = '0123456789'.split('');
-    const specials = ['?', '.', ',', '!', '/'];
-    const grid     = document.getElementById('alpha-grid');
+/* ════ DIVIDERS ════ */
+.special-divider {
+  grid-column: 1 / -1; height: 1px;
+  background: var(--border); margin: 8px 0;
+  position: relative;
+}
+.special-divider span {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-deep);
+  padding: 0 12px;
+  font-size: 0.55rem; letter-spacing: 0.4em; color: var(--text-dim);
+}
 
-    function makeItem(char) {
-      const item = document.createElement('div');
-      item.className = 'alpha-item';
-      if (uniqueLetters.includes(char)) item.dataset.inMessage = 'true';
+/* ════ FOOTER ════ */
+footer {
+  text-align: center; padding: 32px;
+  border-top: 1px solid var(--border);
+  font-size: 0.6rem; letter-spacing: 0.3em; color: var(--text-dim);
+}
+footer span { color: var(--amber-dim); }
 
-      const letterEl = document.createElement('span');
-      letterEl.className = 'alpha-letter';
-      letterEl.textContent = char;
+/* ════ FADE IN ════ */
+.fade-in { animation: fadeIn 0.8s ease forwards; opacity: 0; }
+@keyframes fadeIn { to { opacity: 1; } }
 
-      const codeEl = document.createElement('span');
-      codeEl.className = 'alpha-code';
-      codeEl.textContent = MORSE[char] || '?';
-
-      item.appendChild(letterEl);
-      item.appendChild(codeEl);
-
-      item.addEventListener('click', () => {
-        if (revealedSet.has(char)) {
-          item.classList.add('already-done');
-          setTimeout(() => item.classList.remove('already-done'), 600);
-          return;
-        }
-        if (!uniqueLetters.includes(char)) {
-          item.classList.add('wrong-click');
-          setTimeout(() => item.classList.remove('wrong-click'), 600);
-          return;
-        }
-        item.classList.add('used');
-        revealLetter(char);
-      });
-
-      return item;
-    }
-
-    letters.forEach(c => grid.appendChild(makeItem(c)));
-
-    const div1 = document.createElement('div');
-    div1.className = 'special-divider';
-    div1.innerHTML = '<span>números</span>';
-    grid.appendChild(div1);
-
-    digits.forEach(c => grid.appendChild(makeItem(c)));
-
-    const div2 = document.createElement('div');
-    div2.className = 'special-divider';
-    div2.innerHTML = '<span>sinais</span>';
-    grid.appendChild(div2);
-
-    specials.forEach(c => grid.appendChild(makeItem(c)));
-  </script>
-
-</body>
-</html>
+/* ════ RESPONSIVE ════ */
+@media (max-width: 600px) {
+  .morse-panel { padding: 28px 20px 24px; }
+  .morse-symbol { font-size: 1.1rem; }
+  header { padding: 12px 20px; }
+  .station-id { font-size: 0.85rem; }
+  .alpha-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); }
+}
