@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transmissão · Código Morse</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════ HEADER ═══ -->
+  <header>
+    <div class="station-id">CW·TRANSMIT</div>
+    <div class="signal-indicators">
+      <div class="dot-indicator"></div>
+      <div class="dot-indicator"></div>
+      <div class="dot-indicator"></div>
+    </div>
+    <div class="freq-display">432.0 kHz &nbsp;▪&nbsp; LIVE</div>
+  </header>
+
+  <!-- ═══════════════════════════════════ MAIN ═══ -->
+  <main>
+
+    <div class="transmission-label fade-in" style="animation-delay:0.1s">
+      transmissão interceptada
+    </div>
+
+    <!-- ─── Morse Panel ─── -->
+    <div class="morse-panel fade-in" style="animation-delay:0.3s">
+
+      <!-- A mensagem em Morse é gerada pelo JS abaixo -->
+      <div class="morse-line" id="morse-output"></div>
+
+      <!-- Decoded strip -->
+      <div class="decoded-strip">
+        <div class="decoded-label">DECODIFICADO</div>
+        <div class="decoded-text">Aceita ser o nosso professor orientador?</div>
+      </div>
+
+    </div><!-- /morse-panel -->
+
+    <!-- ─── Alphabet Reference ─── -->
+    <div class="alphabet-section fade-in" style="animation-delay:0.5s">
+
+      <div class="section-title">Tabela de Referência Morse</div>
+
+      <div class="alpha-grid" id="alpha-grid"></div>
+
+    </div>
+
+  </main>
+
+  <!-- ═══════════════════════════════════ FOOTER ═══ -->
+  <footer>
+    <span>·−−· ·−· − −·−·−</span> &nbsp;|&nbsp; International Morse Code · ITU-R M.1677
+  </footer>
+
+  <!-- ═══════════════════════════════════ SCRIPT ═══ -->
+  <script>
+    // ── Morse dictionary ──────────────────────────────────
+    const MORSE = {
+      A:'·−',      B:'−···',    C:'−·−·',    D:'−··',
+      E:'·',       F:'··−·',    G:'−−·',     H:'····',
+      I:'··',      J:'·−−−',    K:'−·−',     L:'·−··',
+      M:'−−',      N:'−·',      O:'−−−',     P:'·−−·',
+      Q:'−−·−',    R:'·−·',     S:'···',     T:'−',
+      U:'··−',     V:'···−',    W:'·−−',     X:'−··−',
+      Y:'−·−−',    Z:'−−··',
+      '0':'−−−−−', '1':'·−−−−', '2':'··−−−', '3':'···−−',
+      '4':'····−', '5':'·····', '6':'−····', '7':'−−···',
+      '8':'−−−··', '9':'−−−−·',
+      '?':'··−−··',
+      '.':'·−·−·−', ',':'−−··−−', '!':'−·−·−−', '/':'−··−·',
+    };
+
+    // ── Render Morse message ──────────────────────────────
+    const message = 'ACEITA SER O NOSSO PROFESSOR ORIENTADOR?';
+    const container = document.getElementById('morse-output');
+
+    let charIndex = 0;
+    const words = message.split(' ');
+
+    words.forEach((word, wi) => {
+      const wordEl = document.createElement('div');
+      wordEl.className = 'morse-word';
+
+      [...word].forEach(letter => {
+        const code = MORSE[letter] || '';
+        const isQ  = (letter === '?');
+
+        const charEl = document.createElement('div');
+        charEl.className = 'morse-char' + (isQ ? ' question-mark' : '');
+        charEl.style.animationDelay = (0.4 + charIndex * 0.04) + 's';
+
+        const symEl = document.createElement('div');
+        symEl.className = 'morse-symbol';
+        symEl.textContent = code;
+
+        const letEl = document.createElement('div');
+        letEl.className = 'morse-letter';
+        letEl.textContent = letter;
+
+        charEl.appendChild(symEl);
+        charEl.appendChild(letEl);
+        wordEl.appendChild(charEl);
+        charIndex++;
+      });
+
+      container.appendChild(wordEl);
+
+      // Word separator (not after last word)
+      if (wi < words.length - 1) {
+        const sep = document.createElement('div');
+        sep.className = 'word-sep';
+        container.appendChild(sep);
+      }
+    });
+
+    // Blinking cursor at end
+    const lastWord = container.lastElementChild;
+    if (lastWord && lastWord.classList.contains('morse-word')) {
+      const cur = document.createElement('span');
+      cur.className = 'cursor-blink';
+      lastWord.appendChild(cur);
+    }
+
+    // ── Render Alphabet Grid ──────────────────────────────
+    const letters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const digits   = '0123456789'.split('');
+    const specials = ['?', '.', ',', '!', '/'];
+
+    const grid = document.getElementById('alpha-grid');
+
+    function makeItem(char) {
+      const item = document.createElement('div');
+      item.className = 'alpha-item';
+      const letterEl = document.createElement('span');
+      letterEl.className = 'alpha-letter';
+      letterEl.textContent = char;
+      const codeEl = document.createElement('span');
+      codeEl.className = 'alpha-code';
+      codeEl.textContent = MORSE[char] || '?';
+      item.appendChild(letterEl);
+      item.appendChild(codeEl);
+      return item;
+    }
+
+    letters.forEach(c => grid.appendChild(makeItem(c)));
+
+    // Divider before numbers
+    const div1 = document.createElement('div');
+    div1.className = 'special-divider';
+    div1.innerHTML = '<span>números</span>';
+    grid.appendChild(div1);
+
+    digits.forEach(c => grid.appendChild(makeItem(c)));
+
+    // Divider before specials
+    const div2 = document.createElement('div');
+    div2.className = 'special-divider';
+    div2.innerHTML = '<span>sinais</span>';
+    grid.appendChild(div2);
+
+    specials.forEach(c => grid.appendChild(makeItem(c)));
+  </script>
+
+</body>
+</html>
